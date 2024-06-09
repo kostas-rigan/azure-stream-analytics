@@ -17,6 +17,15 @@ HAVING Type = 0
  Show the total “Amount” of “Type = 1” transactions at “ATM Code = 21” of the last hour. Repeat once every hour
  (use a tumbling window).
  */
+SELECT Type,
+    ATMCode,
+    SUM(Amount) as Total_Amount
+FROM [input] TIMESTAMP BY EventEnqueuedUtcTime
+GROUP BY Type,
+    ATMCode,
+    SlidingWindow(hour, 1)
+HAVING Type = 1
+    AND ATMCode = 21;
 /*
  Query 3:
  Show the total “Amount” of “Type = 1” transactions at “ATM Code = 21” of the last hour. Repeat once every 30 minutes
@@ -27,7 +36,7 @@ SELECT Type,
     SUM(Amount) as Total_Amount
 FROM [input] TIMESTAMP BY EventEnqueuedUtcTime
 GROUP BY Type,
-    ATMCode,
+    ATMCode,    
     HoppingWindow(Duration(hour, 1), Hop(minute, 30))
 HAVING Type = 1
     AND ATMCode = 21;
@@ -35,6 +44,15 @@ HAVING Type = 1
  Query 4:
  Show the total “Amount” of “Type = 1” transactions per “ATM Code” of the last one hour (use a sliding window).
  */
+SELECT Type,
+    ATMCode,
+    SUM(Amount) as Total_Amount
+FROM [input] TIMESTAMP BY EventEnqueuedUtcTime
+GROUP BY Type,
+    ATMCode,
+    SlidingWindow(hour, 1)
+HAVING Type = 1;
+
 /*
  Query 5:
  Show the total “Amount” of “Type = 1” transactions per “Area Code” of the last hour. Repeat once every hour (use a
@@ -53,6 +71,16 @@ HAVING input.Type = 1;
  Show the total “Amount” per ATM’s “City” and Customer’s “Gender” of the last hour. Repeat once every hour (use a
  tumbling window).
  */
+SELECT [area].area_city as City,
+    [customer].gender as Gender,
+    SUM(input.Amount) as Total_Amount
+FROM [input] TIMESTAMP BY EventEnqueuedUtcTime
+    LEFT JOIN [atm] ON input.ATMCode = atm.atm_code
+    LEFT JOIN [area] ON atm.area_code = area.area_code
+    LEFT JOIN [customer] on input.CardNumber = customer.card_number
+GROUP BY [area].area_city,
+    [customer].gender,
+    TumblingWindow(hour, 1)
 /*
  Query 7:
  Alert (SELECT “1”) if a Customer has performed two transactions of “Type = 1” in a window of an hour (use a sliding
@@ -71,3 +99,14 @@ HAVING COUNT(input.EventEnqueuedUtcTime) >= 2;
  Alert (SELECT “1”) if the “Area Code” of the ATM of the transaction is not the same as the “Area Code” of the “Card
  Number” (Customer’s Area Code) - (use a sliding window)
  */
+SELECT customer.last_name as Customer_Last_Name,
+    customer.first_name as Customer_First_Name,
+    1 as Alert
+FROM [input] TIMESTAMP BY EventEnqueuedUtcTime
+    LEFT JOIN [atm] ON input.ATMCode = atm.atm_code
+    LEFT JOIN [area] ON atm.area_code = area.area_code
+    LEFT JOIN [customer] ON input.CardNumber = customer.card_number
+WHERE atm.area_code != customer.area_code
+GROUP BY customer.last_name,
+    customer.first_name,
+    SlidingWindow(hour, 1)
